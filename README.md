@@ -10,6 +10,13 @@
 
 នៅពេលមាន version ថ្មី ប៊ូតុង **Update** នៅខាងក្រោម app នឹងប្រែពណ៌បៃតង។ ចុចវា ហើយ app នឹងទាញយក និងបើកឡើងវិញដោយខ្លួនឯង។
 
+### បើ Windows រារាំង ឬព្រមាន
+
+App នេះឥតគិតថ្លៃ និងមិនទាន់មាន code signing ទេ ដូច្នេះ Windows មិនទាន់ស្គាល់អ្នកបោះផ្សាយ។
+
+- **Windows protected your PC (SmartScreen):** ចុច **More info** រួច **Run anyway**។
+- **An Application Control policy has blocked this file:** នេះមកពី Smart App Control ហើយវាមិនអនុញ្ញាតឱ្យលើកលែងតែ app មួយទេ។ បើអ្នកទុកចិត្ត app នេះ អាចបិទវានៅ Windows Security > App & browser control > Smart App Control settings។ ការបិទនេះបន្ថយការការពារលើកុំព្យូទ័រទាំងមូល ដូច្នេះសូមសម្រេចចិត្តដោយខ្លួនឯង។ កូដទាំងអស់បើកជាសាធារណៈនៅក្នុង repo នេះ។
+
 ## មុខងារ
 
 - ថតពេញអេក្រង់ គ្រប់អេក្រង់ តំបន់ដែលជ្រើស ឬ window មួយ

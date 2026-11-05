@@ -1,44 +1,39 @@
 """Builds dist/ScreenRecorderPro.exe (single file, FFmpeg bundled) and dist/ScreenRecorderPro-Setup.exe."""
+import io
 import os
 import re
 import shutil
 import struct
 import subprocess
 import sys
-import zlib
 
-import numpy as np
+from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# assets/icon.png is 1254 px. The full artwork is unreadable at taskbar size, so small icons
+# show just the record button on the monitor.
+FULL_ICON_CROP = (12, 12, 1242, 1242)
+SMALL_ICON_CROP = (332, 365, 902, 935)
 
 
-def png_bytes(img):
-    h, w, _ = img.shape
-    raw = b"".join(b"\x00" + img[y].tobytes() for y in range(h))
-
-    def chunk(tag, data):
-        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
-    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
-            + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
-
-
-def icon_image(size):
-    yy, xx = np.mgrid[0:size, 0:size] + 0.5
-    c = size / 2
-    r = np.hypot(xx - c, yy - c)
-    img = np.zeros((size, size, 4), np.uint8)
-    outer = np.clip(c * 0.96 - r + 0.5, 0, 1)          # dark rounded badge
-    ring = np.clip(c * 0.80 - r + 0.5, 0, 1) - np.clip(c * 0.68 - r + 0.5, 0, 1)
-    dot = np.clip(c * 0.48 - r + 0.5, 0, 1)
-    for ch, (bg, fg) in enumerate([(30, 255), (30, 59), (36, 48)]):
-        img[..., ch] = (bg * (1 - np.maximum(ring, dot)) + fg * np.maximum(ring, dot)).astype(np.uint8)
-    img[..., 3] = (outer * 255).astype(np.uint8)
+def icon_image(art, size):
+    """One icon frame with the rounded corners cut out of the artwork's black background."""
+    img = art.crop(SMALL_ICON_CROP if size <= 48 else FULL_ICON_CROP).resize((size, size), Image.LANCZOS).convert("RGBA")
+    big = size * 4  # mask drawn large and scaled down for smooth corners
+    mask = Image.new("L", (big, big), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, big - 1, big - 1), radius=big // 5, fill=255)
+    img.putalpha(mask.resize((size, size), Image.LANCZOS))
     return img
 
 
 def write_ico(path):
+    art = Image.open(os.path.join(HERE, "assets", "icon.png")).convert("RGB")
     sizes = [16, 24, 32, 48, 64, 128, 256]
-    pngs = [png_bytes(icon_image(s)) for s in sizes]
+    pngs = []
+    for size in sizes:
+        buf = io.BytesIO()
+        icon_image(art, size).save(buf, "PNG")
+        pngs.append(buf.getvalue())
     header = struct.pack("<HHH", 0, 1, len(sizes))
     offset = 6 + 16 * len(sizes)
     entries = b""

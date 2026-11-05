@@ -33,7 +33,7 @@ import pyaudiowpatch as pyaudio
 from PIL import Image, ImageDraw, ImageFont
 
 APP_NAME = "Screen Recorder Pro"
-APP_VERSION = "1.0.0"  # the release tag must be this version, e.g. v1.0.0
+APP_VERSION = "1.0.1"  # the release tag must be this version, e.g. v1.0.0
 COPYRIGHT = "© 2026 Cambo Ads"
 REPO = "channaofficial1996/ScreenRecorderPro"
 REPO_URL = f"https://github.com/{REPO}"
