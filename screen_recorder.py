@@ -33,7 +33,7 @@ import pyaudiowpatch as pyaudio
 from PIL import Image, ImageDraw, ImageFont
 
 APP_NAME = "Screen Recorder Pro"
-APP_VERSION = "1.0.1"  # the release tag must be this version, e.g. v1.0.0
+APP_VERSION = "1.0.2"  # the release tag must be this version, e.g. v1.0.0
 COPYRIGHT = "© 2026 Cambo Ads"
 REPO = "channaofficial1996/ScreenRecorderPro"
 REPO_URL = f"https://github.com/{REPO}"
@@ -1515,8 +1515,10 @@ class App:
             color = C_GREEN if lvl < 0.7 else (C_AMBER if lvl < 0.95 else C_RED)
             row["meter"].coords(row["bar"], 0, 0, int(row["meter"].winfo_width() * lvl), 10)
             row["meter"].itemconfig(row["bar"], fill=color)
+        if self.state == "recording" and self.seg.p.poll() is not None:
+            self.recover_segment()
         if self.state in ("recording", "paused", "busy"):
-            el = self.active + (time.perf_counter() - self.seg_t0 if self.state == "recording" else 0)
+            el =self.active + (time.perf_counter() - self.seg_t0 if self.state == "recording" else 0)
             self.timer.configure(text=fmt_time(el))
             if self.state == "recording":
                 self.dot.configure(text_color=C_RED if int(time.time() * 2) % 2 else C_RED_DARK)
@@ -1730,6 +1732,47 @@ class App:
         length = time.perf_counter() - self.seg_t0
         self.seg_lens.append(length)
         self.active += length
+
+    def recover_segment(self):
+        """FFmpeg stopped by itself (screen locked, UAC prompt, display change, fullscreen app...).
+
+        Without this the timer kept running while nothing was captured any more, so the saved
+        video ended early. The dead segment is closed like a pause and a new one is started.
+        """
+        self.state = "busy"
+        for src in self.sources.values():
+            src.pause()
+        self.end_segment()
+        dead = self.seg
+        try:
+            os.makedirs(SETTINGS_DIR, exist_ok=True)
+            with open(os.path.join(SETTINGS_DIR, "capture_error.log"), "a", encoding="utf-8") as f:
+                f.write(f"\n==== {datetime.datetime.now():%Y-%m-%d %H:%M:%S} exit code {dead.p.returncode}\n{dead.tail()}\n")
+        except Exception:
+            pass
+        self.update_buttons()
+        self.set_status("Screen capture was interrupted - reconnecting...", error=True)
+
+        def work():
+            for attempt in range(3):
+                try:
+                    self._start_segment()
+                    break
+                except Exception:
+                    time.sleep(2)
+            else:
+                self.state = "paused"
+                self.post(self.update_buttons)
+                self.post(lambda: self.set_status("Screen capture lost - press Resume, or Stop to save what was recorded",
+                                                  error=True))
+                return
+            for src in self.sources.values():
+                src.resume()
+            self.seg_t0 = time.perf_counter()
+            self.state = "recording"
+            self.post(self.update_buttons)
+            self.post(lambda: self.set_status("Recording resumed after the screen capture was interrupted"))
+        threading.Thread(target=work, daemon=True).start()
 
     def _fail(self, msg):
         self.update_buttons()
